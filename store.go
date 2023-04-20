@@ -11,11 +11,11 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-type SQLiteStore struct {
+type Store struct {
 	db *sql.DB
 }
 
-func NewSQLiteStore(conn string) (*SQLiteStore, error) {
+func NewStore(conn string) (*Store, error) {
 	db, err := sql.Open("sqlite3", conn)
 	if err != nil {
 		return nil, err
@@ -24,16 +24,16 @@ func NewSQLiteStore(conn string) (*SQLiteStore, error) {
 	// TODO: Keep a set of prepared statements with PrepareContext()
 	// TODO: Consider tuning per https://phiresky.github.io/blog/2020/sqlite-performance-tuning/
 
-	return &SQLiteStore{
+	return &Store{
 		db: db,
 	}, nil
 }
 
-func (sls *SQLiteStore) Close() {
-	sls.db.Close()
+func (s *Store) Close() {
+	s.db.Close()
 }
 
-func (sls *SQLiteStore) Write(ctx context.Context, t string, obj any) error {
+func (s *Store) Write(ctx context.Context, t string, obj any) error {
 	id := metadata.GetMetadata(obj).ID
 
 	js, err := json.Marshal(obj)
@@ -41,7 +41,7 @@ func (sls *SQLiteStore) Write(ctx context.Context, t string, obj any) error {
 		return err
 	}
 
-	err = sls.exec(ctx, "INSERT INTO `%s` (id, obj) VALUES (?,?) ON CONFLICT(id) DO UPDATE SET obj=?;", t, id, js, js)
+	err = s.exec(ctx, "INSERT INTO `%s` (id, obj) VALUES (?,?) ON CONFLICT(id) DO UPDATE SET obj=?;", t, id, js, js)
 	if err != nil {
 		return err
 	}
@@ -49,8 +49,8 @@ func (sls *SQLiteStore) Write(ctx context.Context, t string, obj any) error {
 	return nil
 }
 
-func (sls *SQLiteStore) Delete(ctx context.Context, t, id string) error {
-	err := sls.exec(ctx, "DELETE FROM `%s` WHERE id=?", t, id)
+func (s *Store) Delete(ctx context.Context, t, id string) error {
+	err := s.exec(ctx, "DELETE FROM `%s` WHERE id=?", t, id)
 	if err != nil {
 		return err
 	}
@@ -58,8 +58,8 @@ func (sls *SQLiteStore) Delete(ctx context.Context, t, id string) error {
 	return nil
 }
 
-func (sls *SQLiteStore) Read(ctx context.Context, t, id string, factory func() any) (any, error) {
-	rows, err := sls.query(ctx, "SELECT obj FROM `%s` WHERE id=?;", t, id)
+func (s *Store) Read(ctx context.Context, t, id string, factory func() any) (any, error) {
+	rows, err := s.query(ctx, "SELECT obj FROM `%s` WHERE id=?;", t, id)
 	if err != nil {
 		return nil, err
 	}
@@ -87,8 +87,8 @@ func (sls *SQLiteStore) Read(ctx context.Context, t, id string, factory func() a
 	return obj, nil
 }
 
-func (sls *SQLiteStore) List(ctx context.Context, t string, factory func() any) ([]any, error) {
-	rows, err := sls.query(ctx, "SELECT obj FROM `%s`;", t)
+func (s *Store) List(ctx context.Context, t string, factory func() any) ([]any, error) {
+	rows, err := s.query(ctx, "SELECT obj FROM `%s`;", t)
 	if err != nil {
 		return nil, err
 	}
@@ -118,20 +118,20 @@ func (sls *SQLiteStore) List(ctx context.Context, t string, factory func() any) 
 	return ret, nil
 }
 
-func (sls *SQLiteStore) exec(ctx context.Context, query, t string, args ...any) error {
+func (s *Store) exec(ctx context.Context, query, t string, args ...any) error {
 	query = fmt.Sprintf(query, t)
 
-	_, err := sls.db.ExecContext(ctx, query, args...)
+	_, err := s.db.ExecContext(ctx, query, args...)
 	if err == nil {
 		return nil
 	}
 
-	_, err = sls.db.ExecContext(ctx, sls.tableSQL(t))
+	_, err = s.db.ExecContext(ctx, s.tableSQL(t))
 	if err != nil {
 		return err
 	}
 
-	_, err = sls.db.ExecContext(ctx, query, args...)
+	_, err = s.db.ExecContext(ctx, query, args...)
 	if err != nil {
 		return err
 	}
@@ -139,22 +139,22 @@ func (sls *SQLiteStore) exec(ctx context.Context, query, t string, args ...any) 
 	return nil
 }
 
-func (sls *SQLiteStore) query(ctx context.Context, query, t string, args ...any) (*sql.Rows, error) {
+func (s *Store) query(ctx context.Context, query, t string, args ...any) (*sql.Rows, error) {
 	query = fmt.Sprintf(query, t)
 
-	rows, err := sls.db.QueryContext(ctx, query, args...)
+	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err == nil {
 		return rows, nil
 	}
 
-	_, err = sls.db.ExecContext(ctx, sls.tableSQL(t))
+	_, err = s.db.ExecContext(ctx, s.tableSQL(t))
 	if err != nil {
 		return nil, err
 	}
 
-	return sls.db.QueryContext(ctx, query, args...)
+	return s.db.QueryContext(ctx, query, args...)
 }
 
-func (sls *SQLiteStore) tableSQL(t string) string {
+func (s *Store) tableSQL(t string) string {
 	return fmt.Sprintf("CREATE TABLE IF NOT EXISTS `%s` (id TEXT NOT NULL PRIMARY KEY, obj TEXT NOT NULL);", t)
 }

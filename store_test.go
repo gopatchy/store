@@ -2,17 +2,28 @@ package store_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
+	"github.com/dchest/uniuri"
 	"github.com/gopatchy/metadata"
 	"github.com/gopatchy/store"
 	"github.com/stretchr/testify/require"
 )
 
-func testStorer(t *testing.T, st store.Storer) {
+func TestStore(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
-	err := st.Write(ctx, "storeTest", &storeTest{
+	dbname := fmt.Sprintf("file:%s?mode=memory&cache=shared", uniuri.New())
+
+	st, err := store.NewStore(dbname)
+	require.NoError(t, err)
+
+	defer st.Close()
+
+	err = st.Write(ctx, "storeTest", &storeTest{
 		Metadata: metadata.Metadata{
 			ID: "id1",
 		},
@@ -47,10 +58,19 @@ func testStorer(t *testing.T, st store.Storer) {
 	require.Equal(t, "zig", out2.(*storeTest).Opaque)
 }
 
-func testDelete(t *testing.T, st store.Storer) {
+func TestDelete(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
-	err := st.Write(ctx, "storeTest", &storeTest{
+	dbname := fmt.Sprintf("file:%s?mode=memory&cache=shared", uniuri.New())
+
+	st, err := store.NewStore(dbname)
+	require.NoError(t, err)
+
+	defer st.Close()
+
+	err = st.Write(ctx, "storeTest", &storeTest{
 		Metadata: metadata.Metadata{
 			ID: "id1",
 		},
@@ -70,8 +90,17 @@ func testDelete(t *testing.T, st store.Storer) {
 	require.Nil(t, out2)
 }
 
-func testList(t *testing.T, st store.Storer) {
+func TestList(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
+
+	dbname := fmt.Sprintf("file:%s?mode=memory&cache=shared", uniuri.New())
+
+	st, err := store.NewStore(dbname)
+	require.NoError(t, err)
+
+	defer st.Close()
 
 	objs, err := st.List(ctx, "storeTest", func() any { return &storeTest{} })
 	require.NoError(t, err)
