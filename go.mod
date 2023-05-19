@@ -4,9 +4,9 @@ go 1.19
 
 require (
 	github.com/dchest/uniuri v1.2.0
-	github.com/gopatchy/metadata v0.0.0-20230516044939-eed23a0903d5
+	github.com/gopatchy/metadata v0.0.0-20230519040457-7a86a0fb5662
 	github.com/mattn/go-sqlite3 v1.14.16
-	github.com/stretchr/testify v1.8.2
+	github.com/stretchr/testify v1.8.3
 	go.uber.org/goleak v1.2.1
 )
 
